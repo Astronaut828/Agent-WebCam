@@ -1,0 +1,70 @@
+# Operating system and editor state
+.DS_Store
+._*
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Local agent, tool, and deployment state
+.codex/
+.vercel/
+.local/
+.cache/
+
+# Secrets and machine-specific configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+service-account*.json
+
+# Private camera media and runtime files
+/captures/
+/recordings/
+/snapshots/
+/data/
+/logs/
+/tmp/
+*.log
+*.pid
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite3-journal
+*.sqlite3-wal
+*.sqlite3-shm
+
+# Node dependencies and generated output
+node_modules/
+.next/
+.nuxt/
+.output/
+.turbo/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# Python environments, caches, and generated output
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+*.egg-info/
