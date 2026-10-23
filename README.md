@@ -4,6 +4,12 @@ A desktop app with a live camera preview, visual chat, and recognition mode.
 Show an item to your webcam and ask Gemma what it sees, or let it narrate the
 scene as live text.
 
+## Real-time local model narration
+
+Stock Gemma 4 12B running locally, with no fine-tuning.
+
+[![Watch real-time local model narration on YouTube](https://img.youtube.com/vi/uxOZFb8u_JQ/hqdefault.jpg)](https://youtu.be/uxOZFb8u_JQ)
+
 ## Local setup
 
 ### Software
