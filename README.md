@@ -2,13 +2,55 @@
 
 A desktop app with a live camera preview, visual chat, and recognition mode.
 Show an item to your webcam and ask Gemma what it sees, or let it narrate the
-scene as live text. Built with Python, Qt, and OpenCV for Windows,
-macOS, and Linux.
+scene as live text.
 
-## Run
+## Local setup
 
-Install Python 3.11 or newer and [Ollama](https://ollama.com). Start Ollama and
-download the cross-platform Gemma model:
+### Software
+
+| Component | Used by this project |
+| --- | --- |
+| Runtime | Python 3.11–3.15; tested with 3.11 |
+| Desktop framework | PySide6 / Qt 6.12 for the native window, camera preview, and chat |
+| Image processing | OpenCV contrib for frame encoding and scene-change detection |
+| Model server | [Ollama](https://ollama.com), running locally |
+| Vision model | Gemma 4 12B: `gemma4:12b`. Apple Silicon prefers `gemma4:12b-mlx` when that tag is already installed. |
+
+Model weights are downloaded separately from this repository. The
+[standard model](https://ollama.com/library/gemma4:12b) is about 8 GB; the
+[MLX variant](https://ollama.com/library/gemma4:12b-mlx) is about 7.7 GB.
+Only one variant is needed.
+
+### Machine sizing
+
+| Resource | Practical budget |
+| --- | --- |
+| System RAM / unified memory | 16 GB as a starting point; **32 GB recommended** for the model, app, and operating system to have headroom |
+| GPU acceleration | Apple Silicon, or an [Ollama-supported GPU](https://docs.ollama.com/gpu). For a dedicated GPU, aim for **16 GB VRAM**. |
+| Free storage | **20 GB** for one model, Ollama, Python dependencies, caches, and app builds; about **30 GB** if keeping both model variants |
+
+These are planning estimates, not verified minimums or a promise of real-time
+performance. [Google's hardware guidance](https://developers.googleblog.com/gemma-4-12b-the-developer-guide/)
+places this model in the 16 GB VRAM or unified-memory range. On Apple Silicon,
+CPU and GPU share unified memory; do not add the RAM and VRAM figures together.
+On a machine with a dedicated GPU, VRAM is separate from system RAM.
+CPU-only inference may be substantially slower. Actual memory use depends on
+the runtime and [context length](https://docs.ollama.com/context-length);
+the app requests an 8,192-token context.
+
+The current prebuilt dependencies target macOS 14+, Windows x64, or Linux with
+glibc 2.34+ on x64 / glibc 2.39+ on ARM64. The lockfile has no prebuilt OpenCV
+wheel for Windows ARM64. This is an early prototype: live camera, model, and
+desktop-build testing has been performed on Apple Silicon macOS only.
+Windows, Linux, and Intel Mac behavior has not been verified on hardware.
+
+### Install and run
+
+Install a supported Python version from the table above,
+[uv](https://docs.astral.sh/uv/getting-started/installation/), and Ollama.
+Download or clone this repository and
+open a terminal in its project folder. Start Ollama, then download the model
+if neither applicable variant is already installed:
 
 ```sh
 ollama pull gemma4:12b
@@ -46,10 +88,7 @@ agent-webcam
 ```
 
 The app opens its own desktop window, starts the camera, and loads Gemma.
-Allow camera access when your operating system asks. The installed
-`gemma4:12b-mlx` model is reused on Apple Silicon when available; Windows and
-Linux use `gemma4:12b`. Inference speed and model compatibility depend on your
-hardware and Ollama version.
+Allow camera access when your operating system asks.
 
 ## Desktop builds
 
@@ -90,8 +129,8 @@ Very subtle changes can fall below its threshold. Only one model request runs
 at a time; no frames are queued and narration never adds messages to your chat
 history. Stop and restart recognition to request a fresh description.
 Model speed determines the delay for new descriptions. This samples the video
-rather than interpreting every video
-frame or events between snapshots. Select **Stop recognition** or return to
+rather than interpreting every video frame or events between snapshots.
+Select **Stop recognition** or return to
 **Chat** to stop. Camera loss or a model error stops recognition until you
 start it again.
 
@@ -101,8 +140,8 @@ output budget for faster updates. Narration is text only. No microphone access
 is requested.
 
 OpenCV handles the in-memory frame conversion and JPEG encoding. The contrib
-package includes object trackers such as CSRT for the next tracking feature;
-this first window provides preview and visual chat, without tracking controls.
+package includes object trackers such as CSRT, but object tracking is not
+implemented yet.
 
 ## Local data
 
@@ -125,3 +164,8 @@ Tests use synthetic images and mocked model responses. On a headless system,
 set `QT_QPA_PLATFORM=offscreen` before running them. Keep private camera data,
 credentials, local settings, and generated output out of Git. Project rules
 are in [AGENTS.md](AGENTS.md).
+
+## License
+
+The project code is available under the [MIT License](LICENSE). Third-party
+libraries and model weights retain their own licenses.
