@@ -1,3 +1,3 @@
-from agent_webcam.app import main
+from agent_webcam.launcher import main
 
 main()

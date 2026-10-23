@@ -14,11 +14,17 @@ download the cross-platform Gemma model:
 ollama pull gemma4:12b
 ```
 
-For development on Windows or Linux, from this project:
+From this project on macOS, Windows, or Linux:
 
 ```sh
 uv run agent-webcam
 ```
+
+On macOS, this command builds and launches `dist/Agent WebCam.app`, which
+contains the camera permission metadata macOS requires. The first launch
+installs the build tools and takes a little longer. Subsequent launches reuse
+the bundle until the source or dependencies change. Quit any older app window
+before relaunching.
 
 Or use Python's built-in virtual environment and pip:
 
@@ -27,10 +33,15 @@ python -m venv .venv
 ```
 
 Activate it with `.venv\Scripts\activate` on Windows or
-`source .venv/bin/activate` on macOS/Linux, then:
+`source .venv/bin/activate` on macOS/Linux. On macOS install the build tools:
 
 ```sh
-python -m pip install -e .
+python -m pip install -e ".[build]"
+```
+
+On Windows or Linux use `python -m pip install -e .`. Then launch with:
+
+```sh
 agent-webcam
 ```
 
@@ -52,6 +63,10 @@ On macOS, open `dist/Agent WebCam.app`. Use this app bundle for camera access:
 it includes the camera usage description required by macOS. On Windows and
 Linux, open the executable inside `dist/Agent WebCam/`. Each system needs its
 own build; Ollama and the model remain separate prerequisites.
+
+If an older macOS source window reports that `NSCameraUsageDescription` is
+missing, close that window and run `uv run agent-webcam` again, or open the
+app bundle above. Do not edit your Python installation's `Info.plist`.
 
 ## Use
 

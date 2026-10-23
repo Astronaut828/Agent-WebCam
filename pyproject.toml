@@ -18,7 +18,7 @@ dependencies = [
 build = ["pyinstaller>=6.17,<7"]
 
 [project.gui-scripts]
-agent-webcam = "agent_webcam.app:main"
+agent-webcam = "agent_webcam.launcher:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/agent_webcam"]
