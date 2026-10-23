@@ -15,34 +15,48 @@ from .ollama import OllamaClient
 
 
 STYLE = """
-QWidget { background: #111714; color: #e8eee7; font-size: 13px; }
-QLabel { background: transparent; }
-QLabel#title { font-size: 23px; font-weight: 600; }
-QLabel#subtle { color: #96a89b; font-size: 12px; }
-QLabel#model { color: #b8e6c8; font-size: 12px; }
-QLabel#eyebrow { color: #849a8c; font-size: 10px; }
-QLabel#panelTitle { font-size: 22px; font-weight: 500; }
-QLabel#muted, QLabel#cameraNote { color: #96a89b; font-size: 12px; }
-QLabel#cameraStatus { color: #b8e6c8; border: 1px solid #344c3c; border-radius: 10px; padding: 6px 9px; }
-QLabel#cameraOverlayIcon { color: #b8e6c8; font-size: 44px; }
-QLabel#cameraOverlayTitle { font-size: 20px; }
-QFrame#videoStage { background: #0a100d; border: 1px solid #2f3f34; border-radius: 12px; }
-QWidget#cameraOverlay { background: #0a100d; border-radius: 12px; }
-QFrame#chatPanel { background: #19211c; border: 1px solid #344138; border-radius: 12px; }
-QWidget#chatContents, QScrollArea { background: #19211c; border: none; }
-QPushButton { background: #26362b; border: 1px solid #405347; border-radius: 7px; padding: 9px 14px; }
-QPushButton:hover { background: #334a3b; }
-QPushButton:disabled { color: #607568; border-color: #2c3a31; background: #1c2820; }
-QPushButton#send { background: #b8e6c8; color: #162e20; font-weight: 600; }
-QPushButton#send:disabled { background: #415b49; color: #899a8b; }
-QPushButton#quiet { background: transparent; }
-QPlainTextEdit { background: #111a15; border: 1px solid #405347; border-radius: 8px; padding: 10px; selection-background-color: #416e50; }
-QPlainTextEdit:focus { border-color: #99ccaa; }
-QComboBox { background: #223127; border: 1px solid #405347; border-radius: 5px; padding: 6px; }
-QSplitter::handle { background: #111714; width: 14px; }
-QScrollBar:vertical { background: #19211c; width: 8px; }
-QScrollBar::handle:vertical { background: #415347; border-radius: 4px; min-height: 30px; }
+QWidget { background: #111416; color: #e9edef; font-size: 14px; }
+QLabel { background: transparent; border: none; }
+QLabel#title { font-size: 24px; font-weight: 600; }
+QLabel#subtle, QLabel#muted { color: #a1abb3; font-size: 12px; }
+QLabel#localBadge { color: #a8beb3; font-size: 11px; background: #1b2421; border: 1px solid #2b3932; border-radius: 12px; padding: 6px 12px; }
+QLabel#model { color: #a8beb3; font-size: 12px; }
+QLabel#panelTitle { font-size: 20px; font-weight: 600; }
+QLabel#cameraStatus { color: #aab5bc; background: #242b30; border: 1px solid #354047; border-radius: 10px; padding: 6px 10px; font-size: 12px; }
+QLabel#cameraStatus[state="ready"] { color: #b9e6cb; background: #21362c; border-color: #355442; }
+QLabel#cameraStatus[state="error"] { color: #ebc4a1; background: #372b22; border-color: #5a4431; }
+QLabel#cameraOverlayIcon { color: #90b6a1; font-size: 44px; }
+QLabel#cameraOverlayTitle { font-size: 20px; font-weight: 500; }
+QWidget#cameraPanel, QFrame#chatPanel { background: #1a1f23; border: 1px solid #30383e; border-radius: 16px; }
+QFrame#videoStage { background: #0d1113; border: 1px solid #30383e; border-radius: 10px; }
+QWidget#cameraOverlay { background: #0d1113; border-radius: 10px; }
+QWidget#chatContents, QScrollArea { background: #1a1f23; border: none; }
+QWidget#userMessage { background: #252d33; border-radius: 10px; }
+QWidget#assistantMessage { background: transparent; }
+QLabel#messageRole { color: #b9e6cb; font-size: 12px; font-weight: 600; }
+QLabel#messageBody { font-size: 14px; }
+QFrame#composerDivider { background: #30383e; border: none; max-height: 1px; }
+QPushButton { background: #2b353c; border: 1px solid #414e57; border-radius: 8px; padding: 10px 16px; }
+QPushButton:hover { background: #36434b; border-color: #5b6c75; }
+QPushButton:pressed { background: #20292e; }
+QPushButton:disabled { color: #7c8790; border-color: #333d44; background: #242c31; }
+QPushButton#send { background: #b9e6cb; color: #173727; border-color: #b9e6cb; font-weight: 600; }
+QPushButton#send:hover { background: #cdf0db; border-color: #cdf0db; }
+QPushButton#send:disabled { background: #354c40; color: #99b2a3; border-color: #354c40; }
+QPushButton#quiet { background: transparent; border-color: #3a454d; font-size: 12px; padding: 7px 12px; }
+QPushButton#quiet:hover { background: #2b353c; }
+QPushButton#prompt { background: transparent; color: #bac6ce; border-color: #3a454d; padding: 9px 12px; font-size: 12px; }
+QPushButton#prompt:hover { background: #2b353c; }
+QPushButton#prompt:disabled { color: #7c8790; border-color: #333d44; }
+QPlainTextEdit { background: #12181c; border: 1px solid #414e57; border-radius: 10px; padding: 12px; selection-background-color: #416453; }
+QPlainTextEdit:focus { border-color: #a4cfb7; }
+QPlainTextEdit:disabled { color: #89959e; border-color: #333d44; }
+QComboBox { background: #242d33; border: 1px solid #414e57; border-radius: 8px; padding: 8px; }
+QSplitter::handle { background: #111416; }
+QScrollBar:vertical { background: transparent; width: 6px; margin: 4px 0; }
+QScrollBar::handle:vertical { background: #4b5a63; border-radius: 3px; min-height: 30px; }
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: transparent; }
 """
 
 
@@ -70,7 +84,7 @@ class MainWindow(QMainWindow):
     def __init__(self, camera=None, client=None, *, autostart=True):
         super().__init__()
         self.setWindowTitle("Agent WebCam")
-        self.resize(1190, 780)
+        self.resize(1240, 800)
         self.setMinimumSize(900, 600)
         self.camera = camera if camera is not None else CameraPanel()
         self.client = client if client is not None else OllamaClient()
@@ -80,37 +94,41 @@ class MainWindow(QMainWindow):
 
         outer = QWidget()
         layout = QVBoxLayout(outer)
-        layout.setContentsMargins(26, 22, 26, 18)
+        layout.setContentsMargins(28, 24, 28, 18)
         layout.setSpacing(20)
         heading = QHBoxLayout()
         title = QLabel("Agent WebCam")
         title.setObjectName("title")
         heading.addWidget(title)
         heading.addStretch()
-        local = QLabel("LOCAL CAMERA · LOCAL MODEL")
-        local.setObjectName("subtle")
+        local = QLabel("ON DEVICE  ·  OLLAMA")
+        local.setObjectName("localBadge")
         heading.addWidget(local)
         layout.addLayout(heading)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.setChildrenCollapsible(False)
+        splitter.setHandleWidth(24)
         splitter.addWidget(self.camera)
         panel = QFrame()
         panel.setObjectName("chatPanel")
         panel.setMinimumWidth(340)
         chat_layout = QVBoxLayout(panel)
-        chat_layout.setContentsMargins(18, 18, 18, 18)
-        chat_layout.setSpacing(12)
+        chat_layout.setContentsMargins(24, 24, 24, 24)
+        chat_layout.setSpacing(20)
+        chat_header = QVBoxLayout()
+        chat_header.setSpacing(8)
         chat_heading = QHBoxLayout()
+        chat_heading.setSpacing(12)
         caption = QLabel("Conversation")
-        caption.setStyleSheet("font-size: 19px; font-weight: 500;")
+        caption.setObjectName("panelTitle")
         chat_heading.addWidget(caption)
         chat_heading.addStretch()
         self.clear_button = QPushButton("New chat")
         self.clear_button.setObjectName("quiet")
         self.clear_button.clicked.connect(self.new_chat)
         chat_heading.addWidget(self.clear_button)
-        chat_layout.addLayout(chat_heading)
+        chat_header.addLayout(chat_heading)
 
         model_row = QHBoxLayout()
         self.model_label = QLabel("Gemma 4 12B · Loading…")
@@ -122,41 +140,52 @@ class MainWindow(QMainWindow):
         self.retry_button.setVisible(False)
         self.retry_button.clicked.connect(self.client.retry)
         model_row.addWidget(self.retry_button)
-        chat_layout.addLayout(model_row)
+        chat_header.addLayout(model_row)
+        chat_layout.addLayout(chat_header)
 
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
         self.chat_contents = QWidget()
         self.chat_contents.setObjectName("chatContents")
         self.message_layout = QVBoxLayout(self.chat_contents)
-        self.message_layout.setContentsMargins(4, 8, 8, 8)
-        self.message_layout.setSpacing(19)
+        self.message_layout.setContentsMargins(0, 8, 10, 8)
+        self.message_layout.setSpacing(20)
         self.empty_label = QLabel("Show me something.\n\nHold an item in view, then ask a question.")
         self.empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.empty_label.setWordWrap(True)
         self.empty_label.setObjectName("subtle")
-        self.message_layout.addWidget(self.empty_label)
-        self.message_layout.addStretch(1)
+        self.message_layout.addWidget(self.empty_label, 1)
+        self.message_layout.addStretch()
         self.scroll.setWidget(self.chat_contents)
         chat_layout.addWidget(self.scroll, 1)
 
+        composer = QVBoxLayout()
+        composer.setSpacing(12)
+        divider = QFrame()
+        divider.setObjectName("composerDivider")
+        divider.setFixedHeight(1)
+        composer.addWidget(divider)
+        composer.addSpacing(4)
         prompts = QHBoxLayout()
+        prompts.setSpacing(10)
         self.prompt_buttons = []
         for label, prompt in [("What do you see?", "What do you see?"), ("Check this item", "Check this item for visible defects. Ask for any inspection criteria you need.")]:
             button = QPushButton(label)
+            button.setObjectName("prompt")
             button.clicked.connect(lambda _checked=False, text=prompt: self.send(text))
             self.prompt_buttons.append(button)
             prompts.addWidget(button)
-        chat_layout.addLayout(prompts)
+        composer.addLayout(prompts)
 
         self.input = MessageInput()
         self.input.setAccessibleName("Message Gemma about the camera view")
         self.input.setPlaceholderText("Ask about what's in view…")
-        self.input.setFixedHeight(96)
+        self.input.setFixedHeight(104)
         self.input.submitted.connect(self.send_from_input)
         self.input.textChanged.connect(self.limit_input)
-        chat_layout.addWidget(self.input)
+        composer.addWidget(self.input)
         bottom = QHBoxLayout()
+        bottom.setSpacing(12)
         self.hint = QLabel("Starting camera and model…")
         self.hint.setObjectName("subtle")
         self.hint.setWordWrap(True)
@@ -167,13 +196,15 @@ class MainWindow(QMainWindow):
         bottom.addWidget(self.stop_button)
         self.send_button = QPushButton("Send")
         self.send_button.setObjectName("send")
+        self.send_button.setMinimumWidth(80)
         self.send_button.clicked.connect(self.send_from_input)
         bottom.addWidget(self.send_button)
-        chat_layout.addLayout(bottom)
+        composer.addLayout(bottom)
+        chat_layout.addLayout(composer)
         splitter.addWidget(panel)
         splitter.setSizes([650, 450])
         layout.addWidget(splitter, 1)
-        footer = QLabel("A fresh frame with each question. No recordings or saved chats.")
+        footer = QLabel("Processed on this device · No recordings or saved chats")
         footer.setObjectName("subtle")
         layout.addWidget(footer)
         self.setCentralWidget(outer)
@@ -231,13 +262,15 @@ class MainWindow(QMainWindow):
     def add_message(self, role, text):
         self.empty_label.hide()
         widget = QWidget()
-        widget.setStyleSheet("background: transparent;")
+        widget.setObjectName("userMessage" if role == "user" else "assistantMessage")
+        widget.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         item = QVBoxLayout(widget)
-        item.setContentsMargins(0, 0, 0, 0)
-        item.setSpacing(6)
+        item.setContentsMargins(16, 14, 16, 14)
+        item.setSpacing(8)
         name = QLabel("You" if role == "user" else "Gemma")
-        name.setStyleSheet("font-weight: 600; color: #b8e6c8;")
+        name.setObjectName("messageRole")
         body = QLabel(text)
+        body.setObjectName("messageBody")
         body.setTextFormat(Qt.TextFormat.PlainText)
         body.setWordWrap(True)
         body.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
