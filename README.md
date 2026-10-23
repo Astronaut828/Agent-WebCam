@@ -8,7 +8,7 @@ scene as live text.
 
 Stock Gemma 4 12B running locally, with no fine-tuning.
 
-[![Watch real-time local model narration on YouTube](https://img.youtube.com/vi/uxOZFb8u_JQ/hqdefault.jpg)](https://youtu.be/uxOZFb8u_JQ)
+https://github.com/user-attachments/assets/f52f04c9-ee39-41c8-91d9-aa098a333083
 
 ## Local setup
 
