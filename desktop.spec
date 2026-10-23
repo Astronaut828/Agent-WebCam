@@ -20,7 +20,7 @@ if sys.platform == "darwin":
     bundle = BUNDLE(
         folder, name="Agent WebCam.app", bundle_identifier="org.agentwebcam.desktop",
         info_plist={
-            "NSCameraUsageDescription": "Show your camera preview and send a frame to your local Gemma model when you ask a question.",
+            "NSCameraUsageDescription": "Show your camera preview and send frames to your local Gemma model for chat and live scene narration.",
             "NSHighResolutionCapable": True,
         },
     )

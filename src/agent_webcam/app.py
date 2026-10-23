@@ -7,11 +7,12 @@ from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFontDatabase, QIcon, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import (
     QApplication, QFrame, QHBoxLayout, QLabel, QMainWindow, QPlainTextEdit,
-    QPushButton, QScrollArea, QSizePolicy, QSplitter, QVBoxLayout, QWidget,
+    QPushButton, QScrollArea, QSizePolicy, QSplitter, QTabWidget, QVBoxLayout, QWidget,
 )
 
 from .camera import CameraPanel
 from .ollama import OllamaClient
+from .recognition import RecognitionController
 
 
 STYLE = """
@@ -31,6 +32,13 @@ QWidget#cameraPanel, QFrame#chatPanel { background: #1a1f23; border: 1px solid #
 QFrame#videoStage { background: #0d1113; border: 1px solid #30383e; border-radius: 10px; }
 QWidget#cameraOverlay { background: #0d1113; border-radius: 10px; }
 QWidget#chatContents, QScrollArea { background: #1a1f23; border: none; }
+QWidget#modePage { background: #1a1f23; }
+QTabWidget::pane { border: none; }
+QTabBar { background: #1a1f23; }
+QTabBar::tab { background: #1a1f23; color: #a1abb3; border-bottom: 2px solid #30383e; padding: 10px 16px; margin-right: 12px; }
+QTabBar::tab:selected { color: #b9e6cb; border-bottom-color: #b9e6cb; }
+QTabBar::tab:hover { color: #e9edef; }
+QLabel#narration { font-size: 17px; }
 QWidget#userMessage { background: #252d33; border-radius: 10px; }
 QWidget#assistantMessage { background: transparent; }
 QLabel#messageRole { color: #b9e6cb; font-size: 12px; font-weight: 600; }
@@ -88,6 +96,7 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(900, 600)
         self.camera = camera if camera is not None else CameraPanel()
         self.client = client if client is not None else OllamaClient()
+        self.recognition = RecognitionController(self.camera, self.client, self)
         self.history = []
         self.current = None
         self._closing = False
@@ -120,9 +129,9 @@ class MainWindow(QMainWindow):
         chat_header.setSpacing(8)
         chat_heading = QHBoxLayout()
         chat_heading.setSpacing(12)
-        caption = QLabel("Conversation")
-        caption.setObjectName("panelTitle")
-        chat_heading.addWidget(caption)
+        self.caption = QLabel("Conversation")
+        self.caption.setObjectName("panelTitle")
+        chat_heading.addWidget(self.caption)
         chat_heading.addStretch()
         self.clear_button = QPushButton("New chat")
         self.clear_button.setObjectName("quiet")
@@ -143,8 +152,20 @@ class MainWindow(QMainWindow):
         chat_header.addLayout(model_row)
         chat_layout.addLayout(chat_header)
 
+        self.mode_tabs = QTabWidget()
+        self.mode_tabs.setAccessibleName("Vision mode")
+        chat_page = QWidget()
+        chat_page.setObjectName("modePage")
+        chat_page_layout = QVBoxLayout(chat_page)
+        chat_page_layout.setContentsMargins(0, 16, 0, 0)
+        chat_page_layout.setSpacing(20)
+        self.mode_tabs.addTab(chat_page, "Chat")
+
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
+        self.scroll.setMinimumHeight(100)
+        scrollbar = self.scroll.verticalScrollBar()
+        scrollbar.rangeChanged.connect(lambda _minimum, maximum: scrollbar.setValue(maximum))
         self.chat_contents = QWidget()
         self.chat_contents.setObjectName("chatContents")
         self.message_layout = QVBoxLayout(self.chat_contents)
@@ -157,7 +178,7 @@ class MainWindow(QMainWindow):
         self.message_layout.addWidget(self.empty_label, 1)
         self.message_layout.addStretch()
         self.scroll.setWidget(self.chat_contents)
-        chat_layout.addWidget(self.scroll, 1)
+        chat_page_layout.addWidget(self.scroll, 1)
 
         composer = QVBoxLayout()
         composer.setSpacing(12)
@@ -180,7 +201,8 @@ class MainWindow(QMainWindow):
         self.input = MessageInput()
         self.input.setAccessibleName("Message Gemma about the camera view")
         self.input.setPlaceholderText("Ask about what's in view…")
-        self.input.setFixedHeight(104)
+        self.input.setMinimumHeight(72)
+        self.input.setMaximumHeight(104)
         self.input.submitted.connect(self.send_from_input)
         self.input.textChanged.connect(self.limit_input)
         composer.addWidget(self.input)
@@ -200,7 +222,48 @@ class MainWindow(QMainWindow):
         self.send_button.clicked.connect(self.send_from_input)
         bottom.addWidget(self.send_button)
         composer.addLayout(bottom)
-        chat_layout.addLayout(composer)
+        chat_page_layout.addLayout(composer)
+        recognition_page = QWidget()
+        recognition_page.setObjectName("modePage")
+        recognition_layout = QVBoxLayout(recognition_page)
+        recognition_layout.setContentsMargins(0, 20, 0, 0)
+        recognition_layout.setSpacing(16)
+        recognition_help = QLabel("Automatically describe the scene using the latest camera frame.")
+        recognition_help.setObjectName("subtle")
+        recognition_help.setWordWrap(True)
+        recognition_layout.addWidget(recognition_help)
+        narration_scroll = QScrollArea()
+        narration_scroll.setWidgetResizable(True)
+        narration_contents = QWidget()
+        narration_contents.setObjectName("chatContents")
+        narration_layout = QVBoxLayout(narration_contents)
+        narration_layout.setContentsMargins(0, 16, 10, 16)
+        self.narration_label = QLabel("Start recognition to narrate what is in view.")
+        self.narration_label.setObjectName("narration")
+        self.narration_label.setAccessibleName("Live scene narration")
+        self.narration_label.setWordWrap(True)
+        self.narration_label.setTextFormat(Qt.TextFormat.PlainText)
+        self.narration_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        narration_layout.addWidget(self.narration_label)
+        narration_layout.addStretch()
+        narration_scroll.setWidget(narration_contents)
+        recognition_layout.addWidget(narration_scroll, 1)
+        self.recognition_status = QLabel("Recognition is off")
+        self.recognition_status.setObjectName("subtle")
+        self.recognition_status.setWordWrap(True)
+        self.recognition_status.setTextFormat(Qt.TextFormat.PlainText)
+        recognition_layout.addWidget(self.recognition_status)
+        recognition_note = QLabel("One fresh frame per update. Model speed determines the delay; frames are never queued.")
+        recognition_note.setObjectName("subtle")
+        recognition_note.setWordWrap(True)
+        recognition_layout.addWidget(recognition_note)
+        self.recognition_button = QPushButton("Start recognition")
+        self.recognition_button.setObjectName("send")
+        self.recognition_button.clicked.connect(self.toggle_recognition)
+        recognition_layout.addWidget(self.recognition_button)
+        self.mode_tabs.addTab(recognition_page, "Recognition")
+        self.mode_tabs.currentChanged.connect(self.mode_changed)
+        chat_layout.addWidget(self.mode_tabs, 1)
         splitter.addWidget(panel)
         splitter.setSizes([650, 450])
         layout.addWidget(splitter, 1)
@@ -218,6 +281,7 @@ class MainWindow(QMainWindow):
         self.client.token.connect(self.answer_token)
         self.client.completed.connect(self.answer_complete)
         self.client.failed.connect(self.answer_failed)
+        self.recognition.changed.connect(self.update_recognition)
         self.update_controls()
         if autostart:
             QTimer.singleShot(0, self.camera.start)
@@ -233,13 +297,15 @@ class MainWindow(QMainWindow):
         self.update_controls()
 
     def update_controls(self):
-        ready = self.camera.ready and self.client.ready and not self.client.busy and self.current is None
+        ready = self.camera.ready and self.client.ready and not self.client.busy and self.current is None and not self.recognition.active
         self.input.setEnabled(ready)
         self.send_button.setEnabled(ready and bool(self.input.toPlainText().strip()))
         self.send_button.setVisible(self.current is None)
         self.stop_button.setVisible(self.current is not None)
         for button in self.prompt_buttons:
             button.setEnabled(ready)
+        self.recognition_button.setEnabled(self.recognition.active or ready)
+        self.recognition_button.setText("Stop recognition" if self.recognition.active else "Start recognition")
         if self.current:
             self.hint.setText("Looking at the captured frame…")
         elif not self.camera.ready:
@@ -248,6 +314,25 @@ class MainWindow(QMainWindow):
             self.hint.setText("Waiting for Gemma…")
         else:
             self.hint.setText("Enter to send · Shift+Enter for a new line")
+
+    def mode_changed(self, index):
+        self.recognition.stop()
+        if self.current:
+            self.cancel()
+        self.caption.setText("Conversation" if index == 0 else "Recognition")
+        self.clear_button.setVisible(index == 0)
+        self.update_controls()
+
+    def toggle_recognition(self):
+        if self.recognition.active:
+            self.recognition.stop()
+        elif self.current is None:
+            self.recognition.start()
+
+    def update_recognition(self):
+        self.narration_label.setText(self.recognition.text or "Start recognition to narrate what is in view.")
+        self.recognition_status.setText(self.recognition.status)
+        self.update_controls()
 
     def camera_changed(self, state, _detail):
         if state != "ready" and self.current:
@@ -293,6 +378,8 @@ class MainWindow(QMainWindow):
 
     def send(self, text):
         text = text.strip()
+        if self.recognition.active:
+            return
         if not text or len(text) > 4000 or self.current or self.client.busy or not self.client.ready or not self.camera.ready:
             return
         try:
@@ -355,6 +442,7 @@ class MainWindow(QMainWindow):
         self.finish_answer()
 
     def new_chat(self):
+        self.recognition.stop()
         if self.current:
             self.cancel()
         self.history = []
@@ -369,6 +457,7 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event):
         if not self._closing:
             self._closing = True
+            self.recognition.close()
             self.timer.stop()
             self.camera.stop()
             self.client.close()

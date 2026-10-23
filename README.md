@@ -1,7 +1,8 @@
 # Agent-WebCam
 
-A desktop app with a live camera preview and chat. Show an item to your webcam
-and ask Gemma what it sees. Built with Python, Qt, and OpenCV for Windows,
+A desktop app with a live camera preview, visual chat, and recognition mode.
+Show an item to your webcam and ask Gemma what it sees, or let it narrate the
+scene as live text. Built with Python, Qt, and OpenCV for Windows,
 macOS, and Linux.
 
 ## Run
@@ -59,9 +60,20 @@ is attached to each question and the answer streams into the chat. Recent text
 instructions are kept for follow-up questions. Use Stop to cancel a response,
 Stop camera to release the webcam, or New chat to clear the conversation.
 
-Only the current frame is sent to Gemma. It does not continuously analyze the
-video between questions. Frames are resized to a maximum edge of 960 pixels;
-thinking is disabled for faster answers. No microphone access is requested.
+Open the **Recognition** tab and choose **Start recognition** for automatic
+scene narration. The text streams into a single live view that is replaced
+with each new description. One fresh frame is captured after the previous
+description finishes, with a short pause between requests. No frames are queued
+and narration never adds messages to your chat history. Model speed determines
+the update rate; this samples the video rather than interpreting every video
+frame or events between snapshots. Select **Stop recognition** or return to
+**Chat** to stop. Camera loss or a model error stops recognition until you
+start it again.
+
+Only the current frame is sent to Gemma. Frames are resized to a maximum edge
+of 960 pixels; thinking is disabled and recognition descriptions have a shorter
+output budget for faster updates. Narration is text only. No microphone access
+is requested.
 
 OpenCV handles the in-memory frame conversion and JPEG encoding. The contrib
 package includes object trackers such as CSRT for the next tracking feature;

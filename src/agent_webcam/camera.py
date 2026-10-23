@@ -138,7 +138,7 @@ class CameraPanel(QWidget):
         self.status_label.setAccessibleName("Camera status")
         title_row.addWidget(self.status_label)
         heading.addLayout(title_row)
-        subtitle = QLabel("A fresh frame with each question")
+        subtitle = QLabel("Live preview from your webcam")
         subtitle.setObjectName("subtle")
         heading.addWidget(subtitle)
         layout.addLayout(heading)

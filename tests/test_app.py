@@ -3,7 +3,8 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import unittest
 
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QEvent, QObject, Signal
+from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QWidget
 
 from agent_webcam.app import MainWindow, bounded_history
@@ -45,6 +46,7 @@ class FakeClient(QObject):
         self.ready = True
         self.busy = False
         self.calls = []
+        self.narrations = []
         self.cancelled = False
         self.closed = False
 
@@ -57,6 +59,10 @@ class FakeClient(QObject):
     def chat(self, messages, image):
         self.busy = True
         self.calls.append((messages, image))
+
+    def narrate(self, image):
+        self.busy = True
+        self.narrations.append(image)
 
     def cancel(self):
         self.busy = False
@@ -85,6 +91,9 @@ class AppTests(unittest.TestCase):
     def tearDown(self):
         self.window.close()
         self.app.processEvents()
+        self.window.deleteLater()
+        self.client.deleteLater()
+        self.app.sendPostedEvents(None, QEvent.Type.DeferredDelete)
 
     def test_each_question_captures_a_new_image_and_history_is_text_only(self):
         self.window.send("What do you see?")
@@ -128,6 +137,97 @@ class AppTests(unittest.TestCase):
         self.assertLessEqual(sum(len(row["content"]) for row in result), 16000)
         self.assertEqual(result[0]["role"], "user")
         self.assertEqual(result[-1]["content"], "Now?")
+
+    def start_recognition(self):
+        self.window.mode_tabs.setCurrentIndex(1)
+        self.window.recognition_button.click()
+        self.app.processEvents()
+        if not self.client.narrations:
+            self.window.recognition._observe()
+
+    def test_recognition_updates_latest_text_without_growing_chat(self):
+        self.window.history = [
+            {"role": "user", "content": "Keep this conversation."},
+            {"role": "assistant", "content": "Understood."},
+        ]
+        previous_history = list(self.window.history)
+        previous_message_count = self.window.message_layout.count()
+
+        self.start_recognition()
+        self.assertTrue(self.window.recognition.active)
+        self.assertEqual(self.client.narrations, [b"frame-one"])
+        self.assertFalse(self.window.input.isEnabled())
+        self.client.finish("A red item rests on the table.")
+        self.assertEqual(self.window.narration_label.text(), "A red item rests on the table.")
+
+        self.window.recognition._observe()
+        self.assertEqual(self.client.narrations, [b"frame-one", b"frame-two"])
+        self.client.finish("A hand lifts the red item.")
+        self.assertEqual(self.window.narration_label.text(), "A hand lifts the red item.")
+        self.assertEqual(self.window.history, previous_history)
+        self.assertEqual(self.window.message_layout.count(), previous_message_count)
+        self.assertEqual(self.client.calls, [])
+
+    def test_recognition_requires_both_camera_and_model(self):
+        self.window.mode_tabs.setCurrentIndex(1)
+        for resource in (self.camera, self.client):
+            with self.subTest(resource=type(resource).__name__):
+                resource.ready = False
+                self.window.update_controls()
+                self.assertFalse(self.window.recognition_button.isEnabled())
+                self.window.recognition_button.click()
+                self.assertFalse(self.window.recognition.active)
+                self.assertEqual(self.client.narrations, [])
+                resource.ready = True
+                self.window.update_controls()
+
+    def test_latest_chat_answer_stays_visible_at_compact_window_size(self):
+        self.window.resize(900, 600)
+        self.window.show()
+        self.window.send("How many holes are visible?")
+        QTest.qWait(30)
+        self.client.finish("Three mounting holes are visible around the blue part.")
+        QTest.qWait(30)
+        scrollbar = self.window.scroll.verticalScrollBar()
+        self.assertEqual(scrollbar.value(), scrollbar.maximum())
+
+    def test_switching_to_recognition_cancels_chat_before_starting(self):
+        self.window.send("Inspect this item.")
+        self.client.token.emit("An unfinished answer")
+        self.window.mode_tabs.setCurrentIndex(1)
+        self.assertTrue(self.client.cancelled)
+        self.assertIsNone(self.window.current)
+        self.assertEqual(self.window.history, [])
+        self.assertFalse(self.window.recognition.active)
+        self.assertTrue(self.window.recognition_button.isEnabled())
+
+    def test_returning_to_chat_stops_recognition_and_ignores_late_tokens(self):
+        self.start_recognition()
+        self.client.token.emit("An item is visible.")
+        self.window.mode_tabs.setCurrentIndex(0)
+        self.assertFalse(self.window.recognition.active)
+        self.assertTrue(self.client.cancelled)
+        last_narration = self.window.narration_label.text()
+        self.client.finish("This answer arrived after stopping.")
+        self.window.recognition._observe()
+        self.assertEqual(self.window.narration_label.text(), last_narration)
+        self.assertEqual(self.client.narrations, [b"frame-one"])
+        self.assertEqual(self.window.history, [])
+        self.assertTrue(self.window.input.isEnabled())
+
+    def test_camera_stop_ends_recognition(self):
+        self.start_recognition()
+        self.camera.stop()
+        self.assertFalse(self.window.recognition.active)
+        self.assertTrue(self.client.cancelled)
+        self.assertFalse(self.window.recognition_button.isEnabled())
+
+    def test_closing_window_stops_recognition_and_releases_resources(self):
+        self.start_recognition()
+        self.window.close()
+        self.assertFalse(self.window.recognition.active)
+        self.assertTrue(self.camera.stopped)
+        self.assertTrue(self.client.closed)
 
 
 if __name__ == "__main__":

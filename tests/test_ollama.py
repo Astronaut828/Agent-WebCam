@@ -191,6 +191,24 @@ class OllamaTests(unittest.TestCase):
         self.assertEqual(failed, [])
         self.assertFalse(client.busy)
 
+    def test_narration_stream_uses_current_frame_and_short_output_without_chat_context(self):
+        client = self.ready_client()
+        answers, completed = [], []
+        client.token.connect(answers.append)
+        client.completed.connect(completed.append)
+        for image in (IMAGE, IMAGE + b"second-frame"):
+            client.narrate(image)
+            body = self.manager.calls[-1][1]
+            self.assertEqual(len(body["messages"]), 2)
+            self.assertIn("narrate the current camera image", body["messages"][0]["content"])
+            self.assertEqual(body["messages"][-1]["images"], [base64.b64encode(image).decode()])
+            self.assertEqual(body["options"]["num_predict"], 96)
+            self.assertFalse(body["think"])
+            self.assertTrue(body["stream"])
+            self.manager.last_reply.send(b'{"message":{"content":"A blue part on a desk."},"done":true}\n')
+        self.assertEqual(answers, ["A blue part on a desk."] * 2)
+        self.assertEqual(len(completed), 2)
+
     def test_cancel_is_silent_aborts_and_ignores_stale_callbacks(self):
         client = self.ready_client()
         failed, completed, tokens = [], [], []

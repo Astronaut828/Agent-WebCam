@@ -7,7 +7,7 @@ import unittest
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import numpy as np
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QEvent, Qt
 from PySide6.QtGui import QColor, QImage, QPainter
 from PySide6.QtMultimedia import QtVideo, QVideoFrame
 from PySide6.QtWidgets import QApplication
@@ -27,6 +27,7 @@ class CameraPanelTests(unittest.TestCase):
         self.panel.close()
         self.panel.deleteLater()
         self.app.processEvents()
+        self.app.sendPostedEvents(None, QEvent.Type.DeferredDelete)
 
     def frame(self, width=1920, height=1080):
         image = QImage(width, height, QImage.Format.Format_RGB32)
