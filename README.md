@@ -76,11 +76,21 @@ instructions are kept for follow-up questions. Use Stop to cancel a response,
 Stop camera to release the webcam, or New chat to clear the conversation.
 
 Open the **Recognition** tab and choose **Start recognition** for automatic
-scene narration. The text streams into a single live view that is replaced
-with each new description. One fresh frame is captured after the previous
-description finishes, with a short pause between requests. No frames are queued
-and narration never adds messages to your chat history. Model speed determines
-the update rate; this samples the video rather than interpreting every video
+scene narration. Gemma describes the first frame, then OpenCV watches for
+visible changes. The last description stays in place while the scene is
+similar; recognition stays active without repeatedly querying Gemma or
+rephrasing the narration. A new object, movement, or a substantial color change
+triggers another description. The status says **Watching for scene changes**
+between updates.
+
+The detector checks fresh frames about four times per second while idle,
+ignoring small pixel noise. It compares each frame against the last frame
+successfully described, so gradual changes can accumulate into an update.
+Very subtle changes can fall below its threshold. Only one model request runs
+at a time; no frames are queued and narration never adds messages to your chat
+history. Stop and restart recognition to request a fresh description.
+Model speed determines the delay for new descriptions. This samples the video
+rather than interpreting every video
 frame or events between snapshots. Select **Stop recognition** or return to
 **Chat** to stop. Camera loss or a model error stops recognition until you
 start it again.

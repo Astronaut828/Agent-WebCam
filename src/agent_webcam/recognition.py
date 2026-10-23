@@ -1,8 +1,10 @@
-"""Completion-driven narration of fresh camera frames, without a frame queue."""
+"""Watch fresh camera frames and narrate visible scene changes."""
 
 import time
 
 from PySide6.QtCore import QObject, QTimer, Signal
+
+from .scene_change import SceneChangeDetector
 
 
 FRAME_GAP_MS = 250
@@ -26,6 +28,8 @@ class RecognitionController(QObject):
         self._answer = ""
         self._status = "Recognition is off"
         self._started = 0.0
+        self._scene_detector = SceneChangeDetector()
+        self._pending_scene = None
 
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
@@ -69,6 +73,7 @@ class RecognitionController(QObject):
         elif self.client.busy:
             self._status = "Wait for the current answer to finish."
         else:
+            self._scene_detector.reset()
             self._active = True
             self._observe()
             return self._active
@@ -83,6 +88,8 @@ class RecognitionController(QObject):
         self._timer.stop()
         self._status_timer.stop()
         self._answer = ""
+        self._pending_scene = None
+        self._scene_detector.reset()
         self._text = self._finished_text
         self._status = detail
         if owned_request:
@@ -108,6 +115,7 @@ class RecognitionController(QObject):
             return
         try:
             image = self.camera.snapshot()
+            scene = self._scene_detector.prepare(image)
         except (ValueError, RuntimeError) as error:
             self.stop("Recognition stopped: " + str(error))
             return
@@ -117,6 +125,15 @@ class RecognitionController(QObject):
         if self.client.busy:
             self.stop("Recognition stopped: Gemma is busy with another request.")
             return
+        if not self._scene_detector.has_changed(scene):
+            status = "Watching for scene changes · No significant change"
+            if self._status != status:
+                self._status = status
+                self.changed.emit()
+            if self._active and not self._closed:
+                self._timer.start()
+            return
+        self._pending_scene = scene
         self._in_flight = True
         self._answer = ""
         self._started = time.monotonic()
@@ -145,9 +162,11 @@ class RecognitionController(QObject):
             self.stop("Recognition stopped: Gemma returned an empty narration.")
             return
         self._finished_text = self._answer.strip()
+        self._scene_detector.remember(self._pending_scene)
+        self._pending_scene = None
         self._text = self._finished_text
         self._answer = ""
-        self._status = f"Updated in {duration:.1f}s · Looking again shortly"
+        self._status = f"Updated in {duration:.1f}s · Watching for scene changes"
         self.changed.emit()
         if self._active and not self._closed:
             self._timer.start()

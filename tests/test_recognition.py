@@ -3,6 +3,9 @@
 import os
 import unittest
 
+import cv2
+import numpy as np
+
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import QCoreApplication, QEvent, QObject, Signal
@@ -10,6 +13,15 @@ from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
 from agent_webcam.recognition import MAX_NARRATION_CHARS, RecognitionController
+
+
+def synthetic_image(value=255, with_object=False):
+    frame = np.full((144, 192, 3), value, dtype=np.uint8)
+    if with_object:
+        frame[36:108, 48:144] = (0, 0, 220)
+    encoded, image = cv2.imencode(".jpg", frame)
+    assert encoded
+    return image.tobytes()
 
 
 class FakeCamera(QObject):
@@ -21,6 +33,8 @@ class FakeCamera(QObject):
         self.captures = 0
         self.error = None
         self.during_snapshot = None
+        self.fixed_frame = None
+        self.frames = []
 
     def snapshot(self):
         if self.error:
@@ -28,7 +42,9 @@ class FakeCamera(QObject):
         self.captures += 1
         if self.during_snapshot:
             self.during_snapshot()
-        return f"synthetic-frame-{self.captures}".encode()
+        image = self.fixed_frame or synthetic_image(min(self.captures * 40, 240))
+        self.frames.append(image)
+        return image
 
     def set_state(self, state, detail):
         self.ready = state == "ready"
@@ -94,7 +110,7 @@ class RecognitionTests(unittest.TestCase):
         self.assertTrue(self.controller.start())
         self.assertTrue(self.controller.active)
         self.assertTrue(self.controller.in_flight)
-        self.assertEqual(self.client.calls, [b"synthetic-frame-1"])
+        self.assertEqual(self.client.calls, self.camera.frames)
         self.controller.start()
         self.controller._observe()
         self.controller._observe()
@@ -104,10 +120,110 @@ class RecognitionTests(unittest.TestCase):
         self.assertTrue(self.controller._timer.isActive())
         self.assertEqual(self.controller.text, "A metal bracket.")
         self.next_frame()
-        self.assertEqual(self.client.calls, [b"synthetic-frame-1", b"synthetic-frame-2"])
+        self.assertEqual(len(self.client.calls), 2)
+        self.assertEqual(self.client.calls, self.camera.frames)
         self.assertEqual(self.controller.text, "A metal bracket.")
         self.client.token.emit("A hand enters view.")
         self.assertEqual(self.controller.text, "A hand enters view.")
+
+    def test_unchanged_white_scene_keeps_watching_without_rephrasing(self):
+        self.camera.fixed_frame = synthetic_image()
+        self.controller.start()
+        self.client.finish("There is a solid white frame.")
+
+        for _ in range(4):
+            self.next_frame()
+            self.assertTrue(self.controller.active)
+            self.assertFalse(self.controller.in_flight)
+            self.assertTrue(self.controller._timer.isActive())
+            self.assertEqual(self.controller.text, "There is a solid white frame.")
+            self.assertEqual(
+                self.controller.status,
+                "Watching for scene changes · No significant change",
+            )
+
+        self.assertEqual(self.camera.captures, 5)
+        self.assertEqual(self.client.calls, [self.camera.fixed_frame])
+
+    def test_new_object_after_quiet_polls_triggers_one_new_description(self):
+        white = synthetic_image()
+        object_frame = synthetic_image(with_object=True)
+        self.camera.fixed_frame = white
+        self.controller.start()
+        self.client.finish("A solid white frame.")
+        self.next_frame()
+        self.next_frame()
+        self.assertEqual(self.client.calls, [white])
+
+        self.camera.fixed_frame = object_frame
+        self.next_frame()
+        self.assertTrue(self.controller.in_flight)
+        self.assertEqual(self.client.calls, [white, object_frame])
+        self.assertEqual(self.controller.text, "A solid white frame.")
+        self.client.finish("A red item appears in the white frame.")
+        self.next_frame()
+        self.assertEqual(self.client.calls, [white, object_frame])
+        self.assertEqual(self.controller.text, "A red item appears in the white frame.")
+        self.assertTrue(self.controller.active)
+
+    def test_gradual_changes_are_compared_with_last_narrated_scene(self):
+        self.camera.fixed_frame = synthetic_image(100)
+        self.controller.start()
+        self.client.finish("A gray frame.")
+        for value in (105, 110, 115):
+            self.camera.fixed_frame = synthetic_image(value)
+            self.next_frame()
+            self.assertEqual(len(self.client.calls), 1)
+
+        self.camera.fixed_frame = synthetic_image(125)
+        self.next_frame()
+        self.assertEqual(len(self.client.calls), 2)
+        self.assertEqual(self.client.calls[-1], self.camera.fixed_frame)
+        self.assertTrue(self.controller.in_flight)
+
+    def test_scene_baseline_is_only_saved_after_successful_nonempty_narration(self):
+        self.camera.fixed_frame = synthetic_image()
+        self.controller.start()
+        detector = self.controller._scene_detector
+        scene = detector.prepare(self.camera.fixed_frame)
+        self.assertTrue(detector.has_changed(scene))
+        self.assertIsNotNone(self.controller._pending_scene)
+        self.client.token.emit("A white frame.")
+        self.assertTrue(detector.has_changed(scene))
+
+        self.client.busy = False
+        self.client.completed.emit(0.5)
+        self.assertFalse(detector.has_changed(scene))
+        self.assertIsNone(self.controller._pending_scene)
+
+        self.camera.fixed_frame = synthetic_image(with_object=True)
+        self.next_frame()
+        self.client.token.emit("Unfinished description")
+        self.client.busy = False
+        self.client.failed.emit("Connection lost")
+        self.assertIsNone(self.controller._pending_scene)
+        self.assertTrue(detector.has_changed(scene))
+        self.assertFalse(self.controller.active)
+        self.assertEqual(self.controller.text, "A white frame.")
+
+    def test_stop_then_restart_narrates_even_when_the_scene_is_unchanged(self):
+        self.camera.fixed_frame = synthetic_image()
+        self.controller.start()
+        self.client.finish("A white frame.")
+        self.next_frame()
+        self.controller.stop()
+        self.assertIsNone(self.controller._pending_scene)
+
+        self.assertTrue(self.controller.start())
+        self.assertEqual(self.client.calls, [self.camera.fixed_frame] * 2)
+        self.assertTrue(self.controller.in_flight)
+
+    def test_invalid_frame_stops_without_sending_model_request(self):
+        self.camera.fixed_frame = b"not a JPEG image"
+        self.assertFalse(self.controller.start())
+        self.assertFalse(self.controller.active)
+        self.assertEqual(self.client.calls, [])
+        self.assertFalse(self.controller._timer.isActive())
 
     def test_stop_during_gap_prevents_another_frame_and_preserves_finished_text(self):
         self.controller.start()
@@ -135,6 +251,9 @@ class RecognitionTests(unittest.TestCase):
         self.assertEqual(self.controller.status, "Recognition is off")
         self.assertFalse(self.controller.in_flight)
         self.assertFalse(self.controller._timer.isActive())
+        self.assertIsNone(self.controller._pending_scene)
+        scene = self.controller._scene_detector.prepare(self.camera.frames[-1])
+        self.assertTrue(self.controller._scene_detector.has_changed(scene))
 
     def test_start_guards_camera_model_and_shared_client_without_cancelling_chat(self):
         self.camera.ready = False
@@ -230,6 +349,9 @@ class RecognitionTests(unittest.TestCase):
         self.assertFalse(self.controller.active)
         self.assertIn("empty narration", self.controller.status)
         self.assertFalse(self.controller._timer.isActive())
+        self.assertIsNone(self.controller._pending_scene)
+        scene = self.controller._scene_detector.prepare(self.camera.frames[-1])
+        self.assertTrue(self.controller._scene_detector.has_changed(scene))
 
     def test_close_cancels_timers_and_request_and_cannot_restart(self):
         self.controller.start()

@@ -3,11 +3,23 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import unittest
 
+import cv2
+import numpy as np
+
 from PySide6.QtCore import QEvent, QObject, Signal
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QWidget
 
 from agent_webcam.app import MainWindow, bounded_history
+
+
+def synthetic_image(with_object=False):
+    frame = np.full((144, 192, 3), 255, dtype=np.uint8)
+    if with_object:
+        frame[36:108, 48:144] = (0, 0, 220)
+    encoded, image = cv2.imencode(".jpg", frame)
+    assert encoded
+    return image.tobytes()
 
 
 class FakeCamera(QWidget):
@@ -16,12 +28,12 @@ class FakeCamera(QWidget):
     def __init__(self):
         super().__init__()
         self.ready = True
-        self.frames = [b"frame-one", b"frame-two"]
+        self.frames = [synthetic_image(), synthetic_image(with_object=True)]
         self.captures = 0
         self.stopped = False
 
     def snapshot(self):
-        image = self.frames[self.captures]
+        image = self.frames[min(self.captures, len(self.frames) - 1)]
         self.captures += 1
         return image
 
@@ -100,7 +112,7 @@ class AppTests(unittest.TestCase):
         self.client.finish("Three holes.")
         self.window.send("How many now?")
         self.client.finish("Four holes.")
-        self.assertEqual([call[1] for call in self.client.calls], [b"frame-one", b"frame-two"])
+        self.assertEqual([call[1] for call in self.client.calls], self.camera.frames)
         self.assertEqual(len(self.client.calls[1][0]), 3)
         self.assertTrue(all(set(message) == {"role", "content"} for message in self.window.history))
 
@@ -155,13 +167,13 @@ class AppTests(unittest.TestCase):
 
         self.start_recognition()
         self.assertTrue(self.window.recognition.active)
-        self.assertEqual(self.client.narrations, [b"frame-one"])
+        self.assertEqual(self.client.narrations, self.camera.frames[:1])
         self.assertFalse(self.window.input.isEnabled())
         self.client.finish("A red item rests on the table.")
         self.assertEqual(self.window.narration_label.text(), "A red item rests on the table.")
 
         self.window.recognition._observe()
-        self.assertEqual(self.client.narrations, [b"frame-one", b"frame-two"])
+        self.assertEqual(self.client.narrations, self.camera.frames)
         self.client.finish("A hand lifts the red item.")
         self.assertEqual(self.window.narration_label.text(), "A hand lifts the red item.")
         self.assertEqual(self.window.history, previous_history)
@@ -180,6 +192,25 @@ class AppTests(unittest.TestCase):
                 self.assertEqual(self.client.narrations, [])
                 resource.ready = True
                 self.window.update_controls()
+
+    def test_unchanged_scene_preserves_narration_and_keeps_stop_available(self):
+        self.camera.frames = [synthetic_image()]
+        self.start_recognition()
+        self.client.finish("There is a solid white frame.")
+        for _ in range(3):
+            self.window.recognition._timer.stop()
+            self.window.recognition._observe()
+
+        self.assertEqual(self.client.narrations, self.camera.frames)
+        self.assertEqual(self.window.narration_label.text(), "There is a solid white frame.")
+        self.assertTrue(self.window.recognition.active)
+        self.assertTrue(self.window.recognition_button.isEnabled())
+        self.assertEqual(self.window.recognition_button.text(), "Stop recognition")
+        self.assertFalse(self.window.input.isEnabled())
+        self.assertEqual(self.window.history, [])
+        self.window.recognition_button.click()
+        self.assertFalse(self.window.recognition.active)
+        self.assertEqual(self.window.narration_label.text(), "There is a solid white frame.")
 
     def test_latest_chat_answer_stays_visible_at_compact_window_size(self):
         self.window.resize(900, 600)
@@ -211,7 +242,7 @@ class AppTests(unittest.TestCase):
         self.client.finish("This answer arrived after stopping.")
         self.window.recognition._observe()
         self.assertEqual(self.window.narration_label.text(), last_narration)
-        self.assertEqual(self.client.narrations, [b"frame-one"])
+        self.assertEqual(self.client.narrations, self.camera.frames[:1])
         self.assertEqual(self.window.history, [])
         self.assertTrue(self.window.input.isEnabled())
 
