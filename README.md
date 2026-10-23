@@ -16,27 +16,23 @@ scene as live text.
 | Model server | [Ollama](https://ollama.com), running locally |
 | Vision model | Gemma 4 12B: `gemma4:12b`. Apple Silicon prefers `gemma4:12b-mlx` when that tag is already installed. |
 
-Model weights are downloaded separately from this repository. The
-[standard model](https://ollama.com/library/gemma4:12b) is about 8 GB; the
-[MLX variant](https://ollama.com/library/gemma4:12b-mlx) is about 7.7 GB.
-Only one variant is needed.
+### Memory and storage
 
-### Machine sizing
-
-| Resource | Practical budget |
+| Item | Size |
 | --- | --- |
-| System RAM / unified memory | 16 GB as a starting point; **32 GB recommended** for the model, app, and operating system to have headroom |
-| GPU acceleration | Apple Silicon, or an [Ollama-supported GPU](https://docs.ollama.com/gpu). For a dedicated GPU, aim for **16 GB VRAM**. |
-| Free storage | **20 GB** for one model, Ollama, Python dependencies, caches, and app builds; about **30 GB** if keeping both model variants |
+| Standard model, `gemma4:12b` | **8.02 GB** |
+| Apple Silicon model, `gemma4:12b-mlx` | **7.71 GB** |
+| MLX memory example, active and cached buffers | **16.29 GB** |
+| macOS installation example, including model and app | **9.50 GB on disk** |
 
-These are planning estimates, not verified minimums or a promise of real-time
-performance. [Google's hardware guidance](https://developers.googleblog.com/gemma-4-12b-the-developer-guide/)
-places this model in the 16 GB VRAM or unified-memory range. On Apple Silicon,
-CPU and GPU share unified memory; do not add the RAM and VRAM figures together.
-On a machine with a dedicated GPU, VRAM is separate from system RAM.
-CPU-only inference may be substantially slower. Actual memory use depends on
-the runtime and [context length](https://docs.ollama.com/context-length);
-the app requests an 8,192-token context.
+Only one model variant is needed. Memory and installation sizes are examples,
+not tested minimum requirements. The memory figure excludes other system
+usage; installation size excludes download caches and temporary installer
+space. Actual requirements vary by platform and runtime. GB means decimal
+gigabytes.
+
+Apple Silicon shares memory between CPU and GPU. For compatible dedicated
+GPUs, see [Ollama's GPU support](https://docs.ollama.com/gpu).
 
 The current prebuilt dependencies target macOS 14+, Windows x64, or Linux with
 glibc 2.34+ on x64 / glibc 2.39+ on ARM64. The lockfile has no prebuilt OpenCV
